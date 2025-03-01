@@ -127,7 +127,7 @@ class myHashMap<K, V> {
 
         while (head != null) {
             if (head.key.equals(key)) {
-                = head.value;
+                head.value;
                 head.value = value;
                 return oldValue;
             }
@@ -166,7 +166,7 @@ class myHashMap<K, V> {
 
     public V replace(K key, V value) {
         int index = getBucketIndex(key);
-        HashNode<K, V> head = buckets.get(index);
+       Node<K, V> head = buckets.get(index);
 
         while (head != null) {
             if (head.key.equals(key)) {
