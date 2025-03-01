@@ -48,30 +48,30 @@ class HashNode<K, V> {
  */
 class myHashMap<K, V> {
 
-    private static final float LOAD_FACTOR_THRESHOLD = 0.7f;
-    private static final int INITIAL_CAPACITY = 10;
+    private static final float DEFAULT_LOAD_FACTOR = 0.7f;
+    private static final int INITIAL_NUM_BUCKETS = 10;
 
-    private ArrayList<HashNode<K, V>> buckets;
-    private int numBuckets;
-    private int size;
+    ArrayList<HashNode<K, V>> bucket;
+    int numBuckets;
+    int size;
 
     public myHashMap() {
-        this.numBuckets = INITIAL_CAPACITY;
+        this.numBuckets = INITIAL_NUM_BUCKETS;
         this.size = 0;
-        buckets = new ArrayList<>(numBuckets);
+        bucket = new ArrayList<>(numBuckets);
         for (int i = 0; i < numBuckets; i++) {
-            buckets.add(null);
+            bucket.add(null);
         }
     }
 
-    public int size() { return size; }
+    public int Size() { return size; }
     public boolean isEmpty() { return size == 0; }
 
     public void clear() {
         size = 0;
-        buckets = new ArrayList<>(numBuckets);
+        bucket = new ArrayList<>(numBuckets);
         for (int i = 0; i < numBuckets; i++) {
-            buckets.add(null);
+            bucket.add(null);
         }
     }
 
@@ -81,7 +81,7 @@ class myHashMap<K, V> {
 
     public V get(K key) {
         int index = getBucketIndex(key);
-        HashNode<K, V> head = buckets.get(index);
+        HashNode<K, V> head = bucket.get(index);
         while (head != null) {
             if (head.key.equals(key)) {
                 return head.value;
@@ -93,7 +93,7 @@ class myHashMap<K, V> {
 
     public V remove(K key) {
         int index = getBucketIndex(key);
-        HashNode<K, V> head = buckets.get(index);
+        HashNode<K, V> head = bucket.get(index);
         HashNode<K, V> prev = null;
 
         while (head != null) {
@@ -101,7 +101,7 @@ class myHashMap<K, V> {
                 if (prev != null) {
                     prev.next = head.next;
                 } else {
-                    buckets.set(index, head.next);
+                    bucket.set(index, head.next);
                 }
                 size--;
                 return head.value;
@@ -112,9 +112,9 @@ class myHashMap<K, V> {
         return null;
     }
 
-    public boolean remove(K key, V value) {
-        V currentValue = get(key);
-        if (currentValue == null || !currentValue.equals(value)) {
+    public boolean remove(K key, V val) {
+        V originalValue = get(key);
+        if (originalValue == null || !originalValue.equals(val)) {
             return false;
         }
         remove(key);
@@ -122,56 +122,65 @@ class myHashMap<K, V> {
     }
 
     public V put(K key, V value) {
-        int index = getBucketIndex(key);
-        HashNode<K, V> head = buckets.get(index);
-
-        while (head != null) {
-            if (head.key.equals(key)) {
-                head.value;
-                head.value = value;
-                return oldValue;
-            }
-            head = head.next;
+        V oldValue = get(key);
+        if (oldValue != null) {
+            // Directly replace the value without calling put again
+            replace(key, value);
+            return oldValue;
         }
 
-        size++;
-        head = buckets.get(index);
-        HashNode<K, V> newNode = new HashNode<>(key, value);
-        newNode.next = head;
-        buckets.set(index, newNode);
+        int index = getBucketIndex(key);
+        HashNode<K, V> head = bucket.get(index);
+        HashNode<K, V> toAdd = new HashNode<>(key, value);
+        if (head == null) {
+            bucket.set(index, toAdd);
+            size++;
+        } else {
+            while (head != null) {
+                if (head.key.equals(key)) {
+                    head.value = value;
+                    return null;
+                }
+                head = head.next;
+            }
+            head = bucket.get(index);
+            toAdd.next = head;
+            bucket.set(index, toAdd);
+            size++;
+        }
 
-        if ((1.0 * size) / numBuckets > LOAD_FACTOR_THRESHOLD) {
-            resize();
+        if ((1.0 * size) / numBuckets > DEFAULT_LOAD_FACTOR) {
+            ArrayList<HashNode<K, V>> tmp = bucket;
+            bucket = new ArrayList<>();
+            numBuckets = 2 * numBuckets;
+            size = 0;
+
+            for (int i = 0; i < numBuckets; i++) {
+                bucket.add(null);
+            }
+
+            for (HashNode<K, V> headNode : tmp) {
+                while (headNode != null) {
+                    put(headNode.key, headNode.value);
+                    headNode = headNode.next;
+                }
+            }
         }
 
         return null;
     }
 
-    private void resize() {
-        ArrayList<HashNode<K, V>> temp = buckets;
-        numBuckets = 2 * numBuckets;
-        size = 0;
-        buckets = new ArrayList<>(numBuckets);
-        for (int i = 0; i < numBuckets; i++) {
-            buckets.add(null);
+    public V replace(K key, V val) {
+        if (get(key) == null) {
+            return null;
         }
-
-        for (HashNode<K, V> headNode : temp) {
-            while (headNode != null) {
-                put(headNode.key, headNode.value);
-                headNode = headNode.next;
-            }
-        }
-    }
-
-    public V replace(K key, V value) {
+        V oldValue = get(key);
+        // Directly update the value
         int index = getBucketIndex(key);
-       Node<K, V> head = buckets.get(index);
-
+        HashNode<K, V> head = bucket.get(index);
         while (head != null) {
             if (head.key.equals(key)) {
-                V oldValue = head.value;
-                head.value = value;
+                head.value = val;
                 return oldValue;
             }
             head = head.next;
@@ -179,24 +188,19 @@ class myHashMap<K, V> {
         return null;
     }
 
-    public boolean replace(K key, V oldValue, V newValue) {
-        int index = getBucketIndex(key);
-        HashNode<K, V> head = buckets.get(index);
-
-        while (head != null) {
-            if (head.key.equals(key) && head.value.equals(oldValue)) {
-                head.value = newValue;
-                return true;
-            }
-            head = head.next;
+    public boolean replace(K key, V oldVal, V newVal) {
+        V originalValue = get(key);
+        if (originalValue == null || !originalValue.equals(oldVal)) {
+            return false;
         }
-        return false;
+        replace(key, newVal);
+        return true;
     }
 
-    public boolean containsValue(V value) {
-        for (HashNode<K, V> headNode : buckets) {
+    public boolean containsValue(V val) {
+        for (HashNode<K, V> headNode : bucket) {
             while (headNode != null) {
-                if (headNode.value.equals(value)) {
+                if (headNode.value.equals(val)) {
                     return true;
                 }
                 headNode = headNode.next;
@@ -206,28 +210,28 @@ class myHashMap<K, V> {
     }
 
     public boolean containsKey(K key) {
-        return get(key) != null;
+        return (get(key) != null);
     }
 
-    public Set<Map.Entry<K, V>> entrySet() {
-        Set<Map.Entry<K, V>> entrySet = new HashSet<>();
-        for (HashNode<K, V> headNode : buckets) {
+    public Set<Map.Entry<K,V>> entrySet() {
+        Set<Map.Entry<K,V>> returnSet = new HashSet<>();
+        for (HashNode<K, V> headNode : bucket) {
             while (headNode != null) {
-                entrySet.add(Map.entry(headNode.key, headNode.value));
+                returnSet.add(Map.entry(headNode.key, headNode.value));
                 headNode = headNode.next;
             }
         }
-        return entrySet;
+        return returnSet;
     }
 
     public Set<K> keySet() {
-        Set<K> keySet = new HashSet<>();
-        for (HashNode<K, V> headNode : buckets) {
+        Set<K> returnSet = new HashSet<>();
+        for (HashNode<K, V> headNode : bucket) {
             while (headNode != null) {
-                keySet.add(headNode.key);
+                returnSet.add(headNode.key);
                 headNode = headNode.next;
             }
         }
-        return keySet;
+        return returnSet;
     }
 } /* end class myHashMap */
